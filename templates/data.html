@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Track Information</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        function toggleSection(sectionId) {
+            var section = document.getElementById(sectionId);
+            section.style.display = (section.style.display === 'none' || section.style.display === '') ? 'block' : 'none';
+        }
+    </script>
+</head>
+<body>
+
+    <h1>Spotify Track Information</h1>
+
+    <form action="{{ url_for('skip_track') }}" method="post">
+        <input type="submit" value="Skip Track">
+    </form>
+
+    {% if currently_playing %}
+        <h2>Currently Playing</h2>
+        <p><strong>Track:</strong> {{ currently_playing.name }}</p>
+        <p><strong>Artists:</strong> {{ currently_playing.artists | join(', ') }}</p>
+        <p><strong>Album:</strong> {{ currently_playing.album.name }}</p>
+    {% else %}
+        <p>No track is currently playing.</p>
+    {% endif %}
+
+    
+
+</body>
+</html>
