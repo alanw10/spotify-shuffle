@@ -8,11 +8,11 @@ from googleapiclient.discovery import build
 
 
 app = Flask(__name__)
-app.secret_key = 'iamthegoat'
+app.secret_key = ''
 
-CLIENT_ID = 'dedb959380874dafba962a1519eefd39'
-CLIENT_SECRET = 'f7a36fba12ce4b8d992e98524aa3cd30'
-REDIRECT_URI = 'http://127.0.0.1:5000/callback'
+CLIENT_ID = ''
+CLIENT_SECRET = ''
+REDIRECT_URI = ''
 AUTH_URL = 'https://accounts.spotify.com/authorize'
 TOKEN_URL = 'https://accounts.spotify.com/api/token'
 API_BASE_URL = 'https://api.spotify.com/v1/'
@@ -40,7 +40,7 @@ except Exception as e:
     print("Error building Google Sheets service:", e)
     exit()
 
-spreadsheet_id = '1lIrXggee3Bo_-ngMOoyct154T5W1wTbp8r3pDQkH5U8'
+spreadsheet_id = ''
 
 
 def write_to_sheet(values, trial_number):
