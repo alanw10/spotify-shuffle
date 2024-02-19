@@ -1,4 +1,4 @@
-a tool to put your listening history into a google sheet
+a tool to analyze your shuffle and record your queue into a google sheet
 uses google sheets api, and spotify api
  through a parameter, control  how many songs and how many trials to skip through. if you skip 50 songs, it will save 50 song titls into one column
 
