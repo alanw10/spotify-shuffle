@@ -10,4 +10,4 @@ I made this to discover how the shuffle ability is influenced by your listening 
 
 
 
-~because this was meant for personal use, it might be a little buggy, or might not work if you tried to use it.
+~ meant for personal use, it might be a little buggy 
