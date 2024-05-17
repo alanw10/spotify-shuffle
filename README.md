@@ -10,4 +10,3 @@ I made this to discover how the shuffle ability is influenced by your listening 
 
 
 
-~ meant for personal use, it might be a little buggy 
