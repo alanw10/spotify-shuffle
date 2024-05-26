@@ -3,84 +3,56 @@ from flask import Flask, redirect, request, jsonify, session, render_template, u
 import time, os, requests, urllib.parse
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from dotenv import load_dotenv
 
-
-
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = ''
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 
-CLIENT_ID = ''
-CLIENT_SECRET = ''
-REDIRECT_URI = ''
+CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
+CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
+REDIRECT_URI = 'http://127.0.0.1:5000/callback'
 AUTH_URL = 'https://accounts.spotify.com/authorize'
 TOKEN_URL = 'https://accounts.spotify.com/api/token'
 API_BASE_URL = 'https://api.spotify.com/v1/'
 
 KEY_FILE = 'credentials/service_account_key.json'
 
-
 if not os.path.exists(KEY_FILE):
-    print(f"Error: JSON key file '{KEY_FILE}' not found.")
+    app.logger.error(f"Error: JSON key file '{KEY_FILE}' not found.")
     exit()
-
 
 try:
     credentials = service_account.Credentials.from_service_account_file(KEY_FILE)
-    print("Credentials successfully initialized.")
-except Exception as e:
-    print("Error initializing credentials:", e)
-    exit()
-
-
-try:
     service = build('sheets', 'v4', credentials=credentials)
-    print("Google Sheets service successfully built.")
+    app.logger.info("Google Sheets service successfully built.")
 except Exception as e:
-    print("Error building Google Sheets service:", e)
+    app.logger.error(f"Error initializing Google Sheets service: {e}")
     exit()
 
 spreadsheet_id = ''
 
-
-def write_to_sheet(values, trial_number):
-    
+def write_to_sheet(song_name):
     sheet = service.spreadsheets()
 
-    result = sheet.values().get(spreadsheetId=spreadsheet_id,
-                                 range='Sheet1!1:1').execute()
-
-    if 'values' in result and len(result['values']) > 0:
-        num_columns = len(result['values'][0])
-    else:
-        num_columns = 0
-
-    new_column = chr(65 + num_columns)  
-
     
-    range_ = f'Sheet1!{new_column}1:{new_column}'
-
+    column = '' # Adjust yourself  
     
-    trial_header = [['Trial {}'.format(trial_number)]]
-    body = {'values': trial_header}
-    sheet.values().update(
-        spreadsheetId=spreadsheet_id,
-        range=range_,
-        valueInputOption='RAW',
-        body=body).execute()
+    current_data = sheet.values().get(spreadsheetId=spreadsheet_id, range=f'Sheet1!{column}:{column}').execute()
+    current_values = current_data.get('values', [])
+    next_row = len(current_values) + 1
 
-    
-    body = {'values': values}
+   
+    song_range = f'Sheet1!{column}{next_row}'
+    body = {'values': [[song_name]]}  
     result = sheet.values().update(
         spreadsheetId=spreadsheet_id,
-        range=f'Sheet1!{new_column}2:{new_column}',
+        range=song_range,
         valueInputOption='RAW',
         body=body).execute()
 
-    print('Data successfully written to Google Sheets.')
-
-
-
+    print(f'Song "{song_name}" successfully written to Google Sheets at {column}{next_row}.')
 
 def init_session():
     if 'skipped_tracks' not in session:
@@ -112,32 +84,25 @@ def login():
 def data():
     if 'access_token' not in session:
         return redirect('/login')
-
     if datetime.now().timestamp() >= session['expires_at']:
         return redirect('/refresh-token')
 
-    headers = {
-        'Authorization': f"Bearer {session['access_token']}"
-    }
+    headers = {'Authorization': f"Bearer {session['access_token']}"}
 
     try:
         queue = requests.get(API_BASE_URL + 'me/player/queue', headers=headers)
         queue.raise_for_status()
         queue_data = queue.json()
 
-        
         currently_playing = queue_data.get('currently_playing')
+        queue = queue_data.get('queue', ['name'])
+        song_names = [item['name'] for item in queue]
 
-        
-        queue = queue_data.get('queue', [])
-
-        return render_template('data.html', currently_playing=currently_playing, queue=queue)
+        return render_template('data.html', currently_playing=currently_playing, queue=queue,song_names= song_names)
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Error fetching data: {e}")
-
         return jsonify({"error": f"Error fetching data: {e}"})
-
-@app.route('/skip-track', methods=['POST'])
+@app.route('/log-track', methods=['POST'])
 def skip_track():
     access_token = session.get('access_token')
     if not access_token:
@@ -148,56 +113,31 @@ def skip_track():
     }
 
     try:
-        num_tracks_to_skip = 100  
-        num_columns_to_update = 5  
+        num_songs = 1000  # Number of songs to record
 
         
         current_context = requests.get(API_BASE_URL + 'me/player', headers=headers).json().get('context', {}).get('uri')
 
-        for _ in range(num_columns_to_update):
-            skipped_tracks = []  
+        for _ in range(num_songs):
+            currently_playing = requests.get('https://api.spotify.com/v1/me/player/currently-playing', headers=headers).json()
+            song_name_original = currently_playing.get('item', {}).get('name')
+            artist = currently_playing.get('item',{}).get('id')
+            write_to_sheet(str(song_name_original) + " ID " + str(artist))
+            requests.put(API_BASE_URL + 'me/player/play', headers=headers, json={'context_uri': 'spotify:playlist:LOL'}) # Making it play an invalid playlist as a way to reset the shuffle
+            time.sleep(3)  # Wait for the playlist to change (adjust as needed)
 
-            
-            for _ in range(num_tracks_to_skip):
-                
-                currently_playing = requests.get('https://api.spotify.com/v1/me/player/currently-playing', headers=headers).json()
-                song_name = currently_playing.get('item', {}).get('name')
-
-                
-                response = requests.post('https://api.spotify.com/v1/me/player/next', headers=headers)
-                response.raise_for_status()
-                time.sleep(1)
-
-                
-                skipped_tracks.append(song_name)
-
-            
-            trial_number = len(session.get('skipped_tracks_lists', [])) + 1
-            
-            
-            write_to_sheet([[track] for track in skipped_tracks], trial_number)
-
-            
-            skipped_tracks_lists = session.get('skipped_tracks_lists', [])
-            skipped_tracks_lists.append(skipped_tracks)
-            session['skipped_tracks_lists'] = skipped_tracks_lists
-
-            
-            requests.put(API_BASE_URL + 'me/player/play', headers=headers, json={'context_uri': 'spotify:playlist:6IooKuW8C7Sb8IyxP2S2uT'})
-
-
-            
-            time.sleep(1)  
-
-            
             requests.put(API_BASE_URL + 'me/player/play', headers=headers, json={'context_uri': current_context})
+            time.sleep(3)  # Wait for the context to change back (adjust as needed)
 
-        return redirect('/data')  
+     
+        requests.put(API_BASE_URL + 'me/player/play', headers=headers, json={'context_uri': 'spotify:playlist:LOL'}) # Making it play an invalid playlist as a way to reset the shuffle
+
+        return redirect('/data')
     except requests.exceptions.RequestException as e:
         error_message = f"Error skipping tracks: {e}"
         print(error_message)
-        
         return redirect('/data')
+
 
 
 @app.route('/callback')
