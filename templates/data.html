@@ -18,14 +18,16 @@
     <h1>Spotify Track Information</h1>
 
     <form action="{{ url_for('skip_track') }}" method="post">
-        <input type="submit" value="Skip Track">
+        <input type="submit" value="Take data">
     </form>
-
+    
+    
     {% if currently_playing %}
         <h2>Currently Playing</h2>
         <p><strong>Track:</strong> {{ currently_playing.name }}</p>
         <p><strong>Artists:</strong> {{ currently_playing.artists | join(', ') }}</p>
         <p><strong>Album:</strong> {{ currently_playing.album.name }}</p>
+        <p><strong>{{song_names}}</strong></p>
     {% else %}
         <p>No track is currently playing.</p>
     {% endif %}
